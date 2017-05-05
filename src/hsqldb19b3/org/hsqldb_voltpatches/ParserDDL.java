@@ -1509,11 +1509,15 @@ public class ParserDDL extends ParserRoutine {
         Constraint c        = (Constraint) tempConstraints.get(0);
         String     namePart = c.getName() == null ? null
                                                   : c.getName().name;
+        HsqlName indexName = session.database.nameManager.newAutoName("IDX",
+            namePart, table.getSchemaName(), table.getName(),
+            SchemaObject.INDEX);
+
         if (c.mainColSet != null) {
             c.core.mainCols = table.getColumnIndexes(c.mainColSet);
         }
 
-        table.createPrimaryKey(null, c.core.mainCols, true);
+        table.createPrimaryKey(indexName, c.core.mainCols, true);
 
         if (c.core.mainCols != null) {
             Constraint newconstraint = new Constraint(c.getName(), table,
@@ -1546,7 +1550,7 @@ public class ParserDDL extends ParserRoutine {
                     }
 
                     // create an autonamed index
-                    HsqlName indexName = session.database.nameManager.newAutoName("IDX",
+                    indexName = session.database.nameManager.newAutoName("IDX",
                             c.getName().name, table.getSchemaName(),
                             table.getName(), SchemaObject.INDEX);
 

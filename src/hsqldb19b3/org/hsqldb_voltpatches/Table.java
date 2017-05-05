@@ -1421,9 +1421,12 @@ public class Table extends TableBase implements SchemaObject {
 
         ArrayUtil.fillSequence(primaryKeyColsSequence);
 
-        HsqlName name = database.nameManager.newAutoName("IDX",
-                "SYS_PK", getSchemaName(), getName(),
-                SchemaObject.INDEX);
+        HsqlName name = indexName;
+
+        if (name == null) {
+            name = database.nameManager.newAutoName("IDX", getSchemaName(),
+                    getName(), SchemaObject.INDEX);
+        }
 
         createPrimaryIndex(primaryKeyCols, primaryKeyTypes, name);
         setBestRowIdentifiers();
