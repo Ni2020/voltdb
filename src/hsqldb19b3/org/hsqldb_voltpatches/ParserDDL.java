@@ -1507,8 +1507,16 @@ public class ParserDDL extends ParserRoutine {
             HsqlArrayList tempConstraints, HsqlArrayList constraintList) {
 
         Constraint c        = (Constraint) tempConstraints.get(0);
-        String     namePart = c.getName() == null ? null
+        String     namePart = c.getName() == null ? ""
                                                   : c.getName().name;
+        if (!namePart.startsWith("SYS_PK")) {
+            // If PK constraint is named as with syntax
+            //   CONSTRAINT my_name PRIMARY KEY (id)
+            // Then we need to prefix with SYS_PK so that VoltDB knows this is a
+            // primary key.
+            namePart = "SYS_PK_" + namePart;
+        }
+
         HsqlName indexName = session.database.nameManager.newAutoName("IDX",
             namePart, table.getSchemaName(), table.getName(),
             SchemaObject.INDEX);
