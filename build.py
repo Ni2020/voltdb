@@ -559,7 +559,8 @@ if whichtests in ("${eetestsuite}", "plannodes"):
 # tests.
 #
 CTX.GENERATOR_CLASSES = [
-    "org.voltdb.planner.eegentests.GenerateEETests"
+    "org.voltdb.planner.eegentests.GenerateEETests",
+    "org.voltdb.planner.eegentests.GenerateEEPerfTests"
 ]
 ###############################################################################
 #
