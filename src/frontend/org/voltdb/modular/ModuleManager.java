@@ -30,6 +30,7 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.osgi.framework.Bundle;
@@ -90,6 +91,7 @@ public class ModuleManager {
     private final static AtomicReference<File> CACHE_ROOT = new AtomicReference<>();
 
     private static ModuleManager m_self = null;
+    AtomicBoolean m_stopRequested = new AtomicBoolean(false);
 
     public static void initializeCacheRoot(File cacheRoot) {
         if (CACHE_ROOT.compareAndSet(null, checkNotNull(cacheRoot))) {
@@ -185,6 +187,10 @@ public class ModuleManager {
      * @return a reference to an instance of the service class
      */
     public <T> T getService(URI bundleURI, Class<T> svcClazz) {
+        if (m_stopRequested.get()) {
+           LOG.info("Get service called when stop was requested");
+        }
+
         return m_bundles.getService(bundleURI, svcClazz);
     }
 
@@ -286,10 +292,10 @@ public class ModuleManager {
             return get().get(bundleURI);
         }
 
-        <T> T getService(URI bundleURI, Class<T> svcClazz) {
+        synchronized <T> T getService(URI bundleURI, Class<T> svcClazz) {
             Bundle bundle = get().get(bundleURI);
             if (bundle == null) {
-                synchronized(this) {
+                {
                     bundle = startBundle(bundleURI);
                 }
             }
@@ -302,7 +308,7 @@ public class ModuleManager {
             return null;
         }
 
-        Optional<Bundle> stopBundle(URI bundleURI) {
+        synchronized Optional<Bundle> stopBundle(URI bundleURI) {
             NavigableMap<URI,Bundle> expect, update;
             do {
                 expect = get();
@@ -317,17 +323,19 @@ public class ModuleManager {
                     bundle.stop();
                 } catch (BundleException e) {
                     throw loggedModularException(e, "Failed to stop bundle %s", bundleURI);
+                } catch (Throwable rethrow) {
+                    throw loggedModularException(rethrow, "Failed to stop bundle %s", bundleURI);
                 }
             }
             return Optional.ofNullable(bundle);
         }
 
         void uninstallBundle(URI bundleURI) {
-            stopBundle(bundleURI).ifPresent( (Bundle b) -> {
+            stopBundle(bundleURI).ifPresent( (Bundle bundle) -> {
                 try {
-                    b.uninstall();
+                    bundle.uninstall();
                 } catch (Throwable t) {
-                    throw loggedModularException(t, "Failed to uninstall %s", b.getLocation());
+                    throw loggedModularException(t, "Failed to uninstall %s", bundle.getLocation());
                 }
             });
         }

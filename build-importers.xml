@@ -5,7 +5,8 @@
 <property name='build.dir'        location='obj/${build}' />
 <property name='build.prod.dir'   location='${build.dir}/prod' />
 
-    <target name="buildbundles" depends="socketstream, pullsocketimporter, log4jsocketimporter, kafkastream, voltcsvformatter, kinesisstream, kafkastream10"/>
+    <target name="buildbundles" depends="socketstream, pullsocketimporter, log4jsocketimporter, 
+    	kafkastream, voltcsvformatter, kinesisstream, kafkastream10, customFormatter"/>
 
     <resources id="default.imports.resource">
         <string>org.osgi.framework;version=&quot;[1.6,2)&quot;</string>
@@ -162,5 +163,40 @@
             </manifest>
         </jar>
     </target>
+
+    <target name="customFormatter">
+            <mkdir dir="${bundles.dir}" />
+            <jar destfile="${bundles.dir}/myFormatter.jar" basedir="${build.prod.dir}">
+                <include name="CustomFormatterA.class"/>
+                <include name="CustomFormatterB.class"/>
+                <include name="CustomFormatterFactory.class"/>
+                <include name="au/com/bytecode/opencsv_voltpatches/CSVParser.class"/>
+                <manifest>
+                       <attribute name="Bundle-Activator" value="CustomFormatterFactory" />
+                       <attribute name="Bundle-ManifestVersion" value="2" />
+                       <attribute name="Bundle-Name" value="My Formatter OSGi Bundle" />
+                       <attribute name="Bundle-SymbolicName" value="MyFormatter" />
+                       <attribute name="Bundle-Version" value="1.0.0" />
+                       <attribute name="DynamicImport-Package" value="*" />
+                </manifest>
+            </jar>
+	    </target>
+	
+	<!--target name="customFormatter">
+	    <jar destfile="myFormatter.jar" basedir="obj">
+	      <include name="myFormatter/CustomFormatterA.class"/>
+	      <include name="myFormatter/CustomFormatterB.class"/>
+	      <include name="myFormatter/CustomFormatterFactory.class"/>
+	      <include name="au/com/bytecode/opencsv_voltpatches/CSVParser.class"/>
+	      <manifest>
+	        <attribute name="Bundle-Activator" value="myFormatter.CustomFormatterFactory" />
+	        <attribute name="Bundle-ManifestVersion" value="2" />
+	        <attribute name="Bundle-Name" value="My Formatter OSGi Bundle" />
+	        <attribute name="Bundle-SymbolicName" value="MyFormatter" />
+	        <attribute name="Bundle-Version" value="1.0.0" />
+	        <attribute name="DynamicImport-Package" value="*" />
+	      </manifest>
+	    </jar>
+	  </target-->
 
 </project>
