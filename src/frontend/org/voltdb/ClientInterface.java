@@ -1449,12 +1449,12 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
             mayActivateSnapshotDaemon();
 
             //add a notification to client right away
-            StoredProcedureInvocation spi = new StoredProcedureInvocation();
-            spi.setProcName("@SystemCatalog");
-            spi.setParams("PROCEDURES");
-            spi.setClientHandle(ASYNC_PROC_HANDLE);
-            notifyClients(m_currentProcValues,m_currentProcSupplier,
-                           spi, OpsSelector.SYSTEMCATALOG);
+//            StoredProcedureInvocation spi = new StoredProcedureInvocation();
+//            spi.setProcName("@SystemCatalog");
+//            spi.setParams("PROCEDURES");
+//            spi.setClientHandle(ASYNC_PROC_HANDLE);
+//            notifyClients(m_currentProcValues,m_currentProcSupplier,
+//                           spi, OpsSelector.SYSTEMCATALOG);
         }
     }
 
@@ -1590,12 +1590,12 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
         notifyClients(m_currentTopologyValues,m_currentTopologySupplier,
                          spi, OpsSelector.STATISTICS);
 
-        spi = new StoredProcedureInvocation();
-        spi.setProcName("@SystemCatalog");
-        spi.setParams("PROCEDURES");
-        spi.setClientHandle(ASYNC_PROC_HANDLE);
-        notifyClients(m_currentProcValues,m_currentProcSupplier,
-                        spi, OpsSelector.SYSTEMCATALOG);
+//        spi = new StoredProcedureInvocation();
+//        spi.setProcName("@SystemCatalog");
+//        spi.setParams("PROCEDURES");
+//        spi.setClientHandle(ASYNC_PROC_HANDLE);
+//        notifyClients(m_currentProcValues,m_currentProcSupplier,
+//                        spi, OpsSelector.SYSTEMCATALOG);
     }
 
     private void notifyClients( AtomicReference<DeferredSerialization> values,
