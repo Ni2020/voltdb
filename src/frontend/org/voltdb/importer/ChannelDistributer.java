@@ -280,7 +280,6 @@ public class ChannelDistributer implements ChannelChangeCallback {
      * </ul>
      * @param zk
      * @param hostId
-     * @param queue
      */
     public ChannelDistributer(ZooKeeper zk, String hostId) {
         Preconditions.checkArgument(

@@ -287,6 +287,7 @@ public class ImporterLifeCycleManager implements ChannelChangeCallback
     {
         for (AbstractImporter importer : importers) {
             try {
+                s_logger.info("HH: stop importer " + importer.getName());
                 importer.stopImporter();
             } catch(Exception e) {
                 s_logger.warn("Error trying to stop importer resource ID " + importer.getResourceID(), e);

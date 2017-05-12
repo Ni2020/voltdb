@@ -30,7 +30,6 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.osgi.framework.Bundle;
@@ -91,7 +90,7 @@ public class ModuleManager {
     private final static AtomicReference<File> CACHE_ROOT = new AtomicReference<>();
 
     private static ModuleManager m_self = null;
-    AtomicBoolean m_stopRequested = new AtomicBoolean(false);
+//    AtomicBoolean m_stopRequested = new AtomicBoolean(false);
 
     public static void initializeCacheRoot(File cacheRoot) {
         if (CACHE_ROOT.compareAndSet(null, checkNotNull(cacheRoot))) {
@@ -187,10 +186,9 @@ public class ModuleManager {
      * @return a reference to an instance of the service class
      */
     public <T> T getService(URI bundleURI, Class<T> svcClazz) {
-        if (m_stopRequested.get()) {
-           LOG.info("Get service called when stop was requested");
-        }
-
+//        if (m_stopRequested.get()) {
+//           LOG.info("Get service called when stop was requested");
+//        }
         return m_bundles.getService(bundleURI, svcClazz);
     }
 
@@ -249,16 +247,28 @@ public class ModuleManager {
         private Bundle startBundle(URI bundleURI) {
             NavigableMap<URI,Bundle> expect, update;
             Bundle bundle = null;
+            StringBuilder msgDebug = new StringBuilder("");
             do {
                 expect = get();
-                if (expect.containsKey(bundleURI)) break;
+                if (expect.containsKey(bundleURI)) {
+                    msgDebug.append(" startBundle, bundle " + bundleURI.toASCIIString() + " found in the reference");
+                    break;
+                }
 
+                msgDebug.append("\nHH: framework state: " + m_framework.getState()
+                    + " get bundle: " + bundleURI.toASCIIString());
                 BundleContext ctx = m_framework.getBundleContext();
                 bundle = ctx.getBundle(bundleURI.toASCIIString());
                 if (bundle != null) {
                     try {
+                        msgDebug.append(" bundle " + bundle.getLocation() + "found in the bundleContext; "
+                            + "state: " + bundle.getState() + " before update");
                         bundle.update();
+//                        bundle.uninstall();
+//                        bundle = ctx.installBundle(bundleURI.toASCIIString());
+                        msgDebug.append(" state after update: " + bundle.getState());
                     } catch (BundleException e) {
+                        LOG.info(msgDebug.toString());
                         String msg = e.getMessage();
                         throw loggedModularException(e, "Unable to update bundle %s. %s", bundleURI, msg);
                     } catch (Throwable t) {
@@ -267,6 +277,9 @@ public class ModuleManager {
                 } else {
                     try {
                         bundle = ctx.installBundle(bundleURI.toASCIIString());
+                        msgDebug.append(" bundle " + bundleURI.toASCIIString()
+                            + " not found in the bundle context and was installed "
+                            + " state: " + bundle.getState());
                     } catch (BundleException e) {
                         String msg = e.getMessage();
                         throw loggedModularException(e, "Unable to install bundle %s. %s", bundleURI, msg);
@@ -276,6 +289,7 @@ public class ModuleManager {
                 }
                 try {
                     bundle.start();
+                    msgDebug.append(" bundle start " + bundleURI.toASCIIString() + " state: " + bundle.getState());
                 } catch (BundleException e) {
                     String msg = e.getMessage();
                     throw loggedModularException(e, "Unable to start bundle %s. %s", bundleURI, msg);
@@ -289,15 +303,24 @@ public class ModuleManager {
                         .build();
             } while (!compareAndSet(expect, update));
 
+            LOG.info(msgDebug);
+
             return get().get(bundleURI);
         }
 
-        synchronized <T> T getService(URI bundleURI, Class<T> svcClazz) {
+        <T> T getService(URI bundleURI, Class<T> svcClazz) {
             Bundle bundle = get().get(bundleURI);
             if (bundle == null) {
-                {
+                LOG.info("HH: Bundle ref - get service start new bundle: " + bundleURI.toASCIIString() + ", service class: " + svcClazz) ;
+                synchronized (this) {
                     bundle = startBundle(bundleURI);
                 }
+                if (bundle == null) {
+                    LOG.info("HH: bundle ref - NO BUNDLE received from start bundle call");
+                }
+            }
+            else {
+                LOG.info("HH: bundle ref - get service found bundle in its stored reference: " + bundle.getLocation() + ", service class: " + svcClazz) ;
             }
             BundleContext ctx = bundle.getBundleContext();
             for (ServiceReference<?> ref: bundle.getRegisteredServices()) {
@@ -308,7 +331,7 @@ public class ModuleManager {
             return null;
         }
 
-        synchronized Optional<Bundle> stopBundle(URI bundleURI) {
+        Optional<Bundle> stopBundle(URI bundleURI) {
             NavigableMap<URI,Bundle> expect, update;
             do {
                 expect = get();
@@ -319,24 +342,42 @@ public class ModuleManager {
 
             Bundle bundle = expect.get(bundleURI);
             if (bundle != null) {
+                StringBuilder msgBuilder = new StringBuilder("");
+                msgBuilder.append("\nHH: bundle ref - Bundle state after stop: " + bundle.getState());
+                if (bundle.getRegisteredServices().length > 0) {
+                    msgBuilder.append("r\nHH: bundle ref - Registered services " + bundle.getLocation());
+                    for (ServiceReference<?> ref : bundle.getRegisteredServices()) {
+                        msgBuilder.append("\n" + ref.getPropertyKeys().toString());
+                    }
+                }
+                if (bundle.getServicesInUse().length > 0) {
+                    msgBuilder.append("\nHH: bundle ref - services in use" + bundle.getLocation());
+                    for (ServiceReference<?> ref : bundle.getServicesInUse()) {
+                        msgBuilder.append("\n" + ref.getPropertyKeys().toString());
+                    }
+                }
+                msgBuilder.append("HH: bundle ref - Module manager stop bundle: ");
                 try {
+                    msgBuilder.append("\nHH: bundle ref - Stop bundle " + bundle.getLocation());
                     bundle.stop();
                 } catch (BundleException e) {
                     throw loggedModularException(e, "Failed to stop bundle %s", bundleURI);
                 } catch (Throwable rethrow) {
                     throw loggedModularException(rethrow, "Failed to stop bundle %s", bundleURI);
                 }
+                LOG.info(msgBuilder.toString());
             }
             return Optional.ofNullable(bundle);
         }
 
         void uninstallBundle(URI bundleURI) {
-            stopBundle(bundleURI).ifPresent( (Bundle bundle) -> {
+            stopBundle(bundleURI).ifPresent( (Bundle b) -> {
                 try {
-                    bundle.uninstall();
+                    b.uninstall();
                 } catch (Throwable t) {
-                    throw loggedModularException(t, "Failed to uninstall %s", bundle.getLocation());
+                    throw loggedModularException(t, "Failed to uninstall %s", b.getLocation());
                 }
+                LOG.info("HH: bundle ref - Bundle state after uninstall: " + b.getState());
             });
         }
 

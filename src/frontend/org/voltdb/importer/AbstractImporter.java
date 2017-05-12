@@ -18,6 +18,7 @@
 package org.voltdb.importer;
 
 import java.net.URI;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import org.voltcore.logging.Level;
@@ -52,7 +53,7 @@ public abstract class AbstractImporter
 
     private final VoltLogger m_logger;
     private ImporterServerAdapter m_importServerAdapter;
-    private volatile boolean m_stopping;
+    private AtomicBoolean m_stopping = new AtomicBoolean(false);
     private final Function<Integer, Boolean> m_backPressurePredicate = (x) -> shouldRun();
 
     protected AbstractImporter() {
@@ -78,7 +79,7 @@ public abstract class AbstractImporter
      */
     protected final boolean shouldRun()
     {
-        return !m_stopping;
+        return !m_stopping.get();
     }
 
     /**
@@ -119,7 +120,10 @@ public abstract class AbstractImporter
      */
     public void stopImporter()
     {
-        m_stopping = true;
+//        if(m_stopping.compareAndSet(false, true)) {
+//            stop();
+//        }
+        m_stopping.set(true);
         stop();
     }
 

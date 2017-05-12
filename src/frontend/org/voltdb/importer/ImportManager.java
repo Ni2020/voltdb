@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.osgi.framework.BundleException;
@@ -125,8 +127,31 @@ public class ImportManager implements ChannelChangeCallback {
             ImportDataProcessor newProcessor = new ImportProcessor(
                     myHostId, m_distributer, m_moduleManager, m_statsCollector, clusterTag);
             m_processorConfig = CatalogUtil.getImportProcessorConfig(catalogContext.getDeployment().getImport());
+            StringBuilder msg = new StringBuilder("HH: ");
+            Set<Entry<String, ImportConfiguration>> entries = m_processorConfig.entrySet();
+            if (entries == null) {
+                for(Entry<String, ImportConfiguration> entry : entries) {
+                    msg.append("\nProcessorConfig Key: " + entry.getKey() + " property elements");
+
+                    Properties moduleProperties = entry.getValue().getmoduleProperties();
+
+                    if (moduleProperties == null || moduleProperties.isEmpty()) continue;
+
+                    for (Entry<Object, Object>module : moduleProperties.entrySet()) {
+                        msg.append(" key: " + module.getKey() + " value: " + module.getValue());
+                    }
+                }
+                importLog.info(msg.toString());
+            }
+
+
+            if (!m_formatterFactories.isEmpty()) {
+                importLog.info("HH: ImpMangr " + m_formatterFactories.keySet());
+            }
             m_formatterFactories.clear();
 
+            importLog.info("Load formatter modules");
+            // formatter specific modules
             for (ImportConfiguration config : m_processorConfig.values()) {
                 Properties prop = config.getformatterProperties();
                 String module = prop.getProperty(ImportDataProcessor.IMPORT_FORMATTER);
@@ -146,6 +171,7 @@ public class ImportManager implements ChannelChangeCallback {
                 }
             }
 
+            importLog.info("Load processor modules");
             newProcessor.setProcessorConfig(catalogContext, m_processorConfig);
             m_processor.set(newProcessor);
         } catch (final Exception e) {

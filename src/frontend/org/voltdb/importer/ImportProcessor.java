@@ -72,6 +72,8 @@ public class ImportProcessor implements ImportDataProcessor {
         private AbstractImporterFactory m_importerFactory;
         private ImporterLifeCycleManager m_importerTypeMgr;
 
+        URI getBundleURI() { return m_bundleURI; }
+
         public ModuleWrapper(AbstractImporterFactory importerFactory, URI bundleURI) {
             m_bundleURI = bundleURI;
             m_importerFactory = importerFactory;
@@ -99,6 +101,7 @@ public class ImportProcessor implements ImportDataProcessor {
                     m_importerTypeMgr.stop();
                 }
                 if (m_bundleURI != null) {
+                    m_logger.info("HH: Stopping bundle " + m_bundleURI.toASCIIString());
                     m_moduleManager.unload(m_bundleURI);
                 }
             } catch (Exception ex) {
@@ -120,6 +123,7 @@ public class ImportProcessor implements ImportDataProcessor {
             ModuleWrapper wrapper = m_bundles.get(bundleJar);
             if (wrapper == null) {
                 if (moduleType.equalsIgnoreCase("osgi")) {
+                    m_logger.info("HH: get module wrapper: bundle jar " + bundleJar + " for import processor OSGI");
                     URI bundleURI = URI.create(bundleJar);
                     AbstractImporterFactory importerFactory = m_moduleManager
                             .getService(bundleURI, AbstractImporterFactory.class);
@@ -130,6 +134,7 @@ public class ImportProcessor implements ImportDataProcessor {
                     wrapper = new ModuleWrapper(importerFactory, bundleURI);
                 } else {
                     //Class based importer.
+                    m_logger.info("HH: get module wrapper: bundle jar " + bundleJar + " for import processor CLASS");
                     Class<?> reference = this.getClass().getClassLoader().loadClass(bundleJar);
                     if (reference == null) {
                         m_logger.error("Failed to initialize importer from: " + bundleJar);
@@ -144,6 +149,14 @@ public class ImportProcessor implements ImportDataProcessor {
                     throw new RuntimeException("Importer must implement and return a valid unique name.");
                 }
                 Preconditions.checkState(!m_bundlesByName.containsKey(name), "Importer must implement and return a valid unique name: " + name);
+                if (!m_bundlesByName.isEmpty()) {
+                    StringBuilder debugMsg = new StringBuilder("HH: bundles by name: " + m_bundlesByName.keySet().toString());
+                    m_logger.info(debugMsg.toString());
+                }
+                if (!m_bundles.isEmpty()) {
+                    StringBuilder debugMsg = new StringBuilder("HH: bundles: " + m_bundles.keySet().toString());
+                    m_logger.info(debugMsg.toString());
+                }
                 m_bundlesByName.put(name, wrapper);
                 m_bundles.put(bundleJar, wrapper);
             }
@@ -168,7 +181,7 @@ public class ImportProcessor implements ImportDataProcessor {
     @Override
     public synchronized void readyForData(final CatalogContext catContext, final HostMessenger messenger) {
 
-        m_es.submit(new Runnable() {
+        Future<?> task = m_es.submit(new Runnable() {
             @Override
             public void run() {
                 for (ModuleWrapper bw : m_bundles.values()) {
@@ -182,6 +195,17 @@ public class ImportProcessor implements ImportDataProcessor {
                 }
             }
         });
+        //And wait for it.
+        try {
+            if (task.get() == null) {
+                m_logger.info("HH: Bundles sucessfully started");
+            } else {
+                m_logger.info("HH: Failed to START all the bundles");
+            }
+            m_logger.info("HH: Start bundle task completed: " + task.isDone());
+        } catch (InterruptedException | ExecutionException ex) {
+            m_logger.error("Failed to stop import processor.", ex);
+        }
     }
 
     @Override
@@ -194,6 +218,7 @@ public class ImportProcessor implements ImportDataProcessor {
                     //Stop all the bundle wrappers.
                     for (ModuleWrapper bw : m_bundles.values()) {
                         try {
+                            m_logger.info("HH: shutdown processor - Stop bundle " + bw.getBundleURI().toASCIIString());
                             bw.stop();
                         } catch (Exception ex) {
                             m_logger.error("Failed to stop the import handler: " + bw.m_importerFactory.getTypeName(), ex);
@@ -209,7 +234,12 @@ public class ImportProcessor implements ImportDataProcessor {
 
         //And wait for it.
         try {
-            task.get();
+            if (task.get() == null) {
+                m_logger.info("HH: Bundles sucessfully stopped");
+            } else {
+                m_logger.info("HH: Failed to STOP all the bundles");
+            }
+            m_logger.info("HH: Stop bundle task completed: " + task.isDone());
         } catch (InterruptedException | ExecutionException ex) {
             m_logger.error("Failed to stop import processor.", ex);
         }
@@ -229,7 +259,8 @@ public class ImportProcessor implements ImportDataProcessor {
             Properties properties = iConfig.getmoduleProperties();
 
             String importBundleJar = properties.getProperty(IMPORT_MODULE);
-            Preconditions.checkNotNull(importBundleJar, "Import source is undefined or custom export plugin class missing.");
+            Preconditions.checkNotNull(importBundleJar,
+                    "Import source is undefined or custom export plugin class missing.");
             String procedure = properties.getProperty(IMPORT_PROCEDURE);
             //TODO: If processors is a list dont start till all procedures exists.
             Procedure catProc = catalogContext.procedures.get(procedure);
@@ -238,13 +269,15 @@ public class ImportProcessor implements ImportDataProcessor {
             }
 
             if (catProc == null) {
-                m_logger.info("Importer " + cname + " Procedure " + procedure + " is missing will disable this importer until the procedure becomes available.");
+                m_logger.info("Importer " + cname + " Procedure " + procedure +
+                        " is missing will disable this importer until the procedure becomes available.");
                 continue;
             }
             configuredImporters.add(cname);
             addProcessorConfig(iConfig);
         }
-        m_logger.info("Import Processor is configured. Configured Importers: " + configuredImporters);
+        m_logger.info("Import Processor is configured. Configured Importers(" + configuredImporters.size()
+            + ": " + configuredImporters);
     }
 
 }
