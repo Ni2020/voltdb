@@ -3095,6 +3095,18 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
         // Start the rejoin coordinator
         if (m_joinCoordinator != null) {
             try {
+                if (m_messenger.getZK().getChildren(VoltZK.catalogUpdateBlockers, false).size() != 1) {
+
+                    if (m_rejoining) {
+                        VoltZK.removeCatalogUpdateBlocker(m_messenger.getZK(), VoltZK.rejoinActiveBlocker, hostLog);
+                    } else if (m_joining) {
+                        VoltZK.removeCatalogUpdateBlocker(m_messenger.getZK(), VoltZK.elasticJoinActiveBlocker, hostLog);
+                    }
+
+                    throw new RuntimeException("Node " + (m_rejoining ? "rejoin": "join") + " abort because of "
+                            + "UpdateApplicationCatalog is running, please retry later...");
+                }
+
                 m_statusTracker.setNodeState(NodeState.REJOINING);
                 if (!m_joinCoordinator.startJoin(m_catalogContext.database)) {
                     VoltDB.crashLocalVoltDB("Failed to join the cluster", true, null);

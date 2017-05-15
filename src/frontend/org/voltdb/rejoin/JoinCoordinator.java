@@ -17,6 +17,10 @@
 
 package org.voltdb.rejoin;
 
+import java.io.File;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.zookeeper_voltpatches.KeeperException;
 import org.json_voltpatches.JSONException;
 import org.json_voltpatches.JSONObject;
@@ -27,10 +31,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.messaging.LocalMailbox;
 import org.voltdb.sysprocs.saverestore.SnapshotRequestConfig;
 import org.voltdb.utils.VoltFile;
-
-import java.io.File;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Coordinates the sites to perform rejoin
@@ -43,8 +43,9 @@ public abstract class JoinCoordinator extends LocalMailbox {
         m_messenger = hostMessenger;
     }
 
-    public void initialize(int kfactor)
-        throws JSONException, KeeperException, InterruptedException, ExecutionException {}
+    public abstract void initialize(int kfactor)
+        throws JSONException, KeeperException, InterruptedException, ExecutionException;
+
     public void setPartitionsToHSIds(Map<Integer, Long> partsToHSIds) {}
     public JSONObject getTopology() {
         throw new UnsupportedOperationException("getTopology is only supported for elastic join");

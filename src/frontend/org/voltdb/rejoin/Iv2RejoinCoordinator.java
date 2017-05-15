@@ -41,6 +41,7 @@ import org.voltdb.VoltZK;
 import org.voltdb.catalog.Database;
 import org.voltdb.messaging.RejoinMessage;
 import org.voltdb.messaging.RejoinMessage.Type;
+import org.voltdb.sysprocs.saverestore.SnapshotPathType;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 import org.voltdb.sysprocs.saverestore.StreamSnapshotRequestConfig;
 import org.voltdb.utils.FixedDBBPool;
@@ -48,7 +49,6 @@ import org.voltdb.utils.FixedDBBPool;
 import com.google_voltpatches.common.base.Preconditions;
 import com.google_voltpatches.common.collect.ArrayListMultimap;
 import com.google_voltpatches.common.collect.Multimap;
-import org.voltdb.sysprocs.saverestore.SnapshotPathType;
 
 /**
  * Thread Safety: this is a reentrant class. All mutable datastructures
@@ -181,6 +181,10 @@ public class Iv2RejoinCoordinator extends JoinCoordinator {
     @Override
     public void initialize(int kfactor) throws JSONException, KeeperException, InterruptedException, ExecutionException
     {
+        // do not allow rejoin while UAC is running
+        if (m_messenger.getZK().getChildren(VoltZK.catalogUpdateBlockers, false).isEmpty()) {
+            throw new RuntimeException("UpdateApplicationCatalog is in progress, node rejoin abort and please retry later");
+        }
         VoltZK.createCatalogUpdateBlocker(m_messenger.getZK(), VoltZK.rejoinActiveBlocker);
     }
 

@@ -514,10 +514,15 @@ public class UpdateApplicationCatalog extends VoltSystemProcedure {
          * If this update works with elastic then do the update anyways
          */
         ZooKeeper zk = VoltDB.instance().getHostMessenger().getZK();
+        // remove the UAC blocker node under zk directory
+        VoltZK.removeCatalogUpdateBlocker(zk, VoltZK.uacBlocker, log);
+
         if (worksWithElastic == 0 &&
             !zk.getChildren(VoltZK.catalogUpdateBlockers, false).isEmpty()) {
             throw new VoltAbortException("Can't do a catalog update while an elastic join or rejoin is active");
         }
+
+        VoltZK.createCatalogUpdateBlocker(zk, VoltZK.uacBlocker);
 
         // Pull the current catalog and deployment version and hash info.  Validate that we're either:
         // (a) starting a new, valid catalog or deployment update
@@ -555,6 +560,12 @@ public class UpdateApplicationCatalog extends VoltSystemProcedure {
         }
 
         byte[] deploymentBytes = deploymentString.getBytes("UTF-8");
+
+        // re-check the blocker flag, the nodes may be created concurrently (node rejoin, UAC)
+        if (worksWithElastic == 0 && zk.getChildren(VoltZK.catalogUpdateBlockers, false).size() != 1) {
+            throw new VoltAbortException("Can't do a catalog update while an elastic join or rejoin is active, please retry it later");
+        }
+
         // update the global version. only one site per node will accomplish this.
         // others will see there is no work to do and gracefully continue.
         // then update data at the local site.
@@ -603,6 +614,9 @@ public class UpdateApplicationCatalog extends VoltSystemProcedure {
                 requiresSnapshotIsolation,
                 requireCatalogDiffCmdsApplyToEE,
                 hasSchemaChange, requiresNewExportGeneration);
+
+        // remove the UAC blocker node under zk directory
+        VoltZK.removeCatalogUpdateBlocker(zk, VoltZK.uacBlocker, log);
 
         // This is when the UpdateApplicationCatalog really ends in the blocking path
         log.info(String.format("Globally updating the current application catalog and deployment " +

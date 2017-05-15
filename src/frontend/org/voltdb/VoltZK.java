@@ -111,6 +111,7 @@ public class VoltZK {
 
     public static final String elasticJoinActiveBlocker = ZKUtil.joinZKPath(catalogUpdateBlockers, "join_blocker");
     public static final String rejoinActiveBlocker = ZKUtil.joinZKPath(catalogUpdateBlockers, "rejoin_blocker");
+    public static final String uacBlocker = ZKUtil.joinZKPath(catalogUpdateBlockers, "uac_blocker");
     public static final String request_truncation_snapshot_node = ZKUtil.joinZKPath(request_truncation_snapshot, "request_");
 
     // Synchronized State Machine
